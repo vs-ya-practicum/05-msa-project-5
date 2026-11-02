@@ -1,0 +1,52 @@
+services:
+  postgresdb:
+    image: postgres:18
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      - POSTGRES_USER=$POSTGRESDB_USER
+      - POSTGRES_PASSWORD=$POSTGRESDB_ROOT_PASSWORD
+      - POSTGRES_DB=$POSTGRESDB_DATABASE
+    ports:
+      - $POSTGRESDB_LOCAL_PORT:$POSTGRESDB_DOCKER_PORT
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  db-init:
+    image: postgres:18
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+    environment:
+      PGHOST: postgresdb
+      PGPORT: 5432
+      PGUSER: ${POSTGRESDB_USER}
+      PGPASSWORD: ${POSTGRESDB_ROOT_PASSWORD}
+      PGDATABASE: ${POSTGRESDB_DATABASE}
+    volumes:
+      - ./db-init.sql:/init/db-init.sql:ro
+      - ./src/main/resources/schema-all.sql:/init/schema-all.sql:ro
+      - ./src/main/resources/loyality_data.csv:/init/loyality_data.csv:ro
+    command: ["psql", "-X", "--set=ON_ERROR_STOP=1", "--single-transaction", "--file=/init/db-init.sql"]
+    restart: "no"
+
+  app:
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    image: batch-processing
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    restart: no
+
+volumes:
+  postgres-data:
