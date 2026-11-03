@@ -43,6 +43,8 @@ services:
       db-init:
         condition: service_completed_successfully
     image: batch-processing
+    ports:
+      - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgresdb:5432/${ETL_DATABASE:-${POSTGRESDB_DATABASE}}
       BATCH_DEMO_FAIL_ON_SKU: ${BATCH_DEMO_FAIL_ON_SKU:-0}

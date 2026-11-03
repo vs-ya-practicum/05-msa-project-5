@@ -38,7 +38,10 @@ printf 'Preparing %s demonstration in database %s\n' "$demo_scenario" "$ETL_DATA
 "${demo_compose[@]}" run --rm --no-deps -e "PGDATABASE=$ETL_DATABASE" db-init
 "${demo_compose[@]}" up -d --no-deps --force-recreate --no-build app
 
-printf '\nScenario started: %s\nDatabase retained: %s\n' "$demo_scenario" "$ETL_DATABASE"
+printf '\nScenario prepared: %s\nDatabase retained: %s\n' "$demo_scenario" "$ETL_DATABASE"
+printf 'ETL has not started. Wait for application startup, then run from the terminal:\n'
+printf 'curl -i -X POST http://localhost:8080/api/jobs/import-products\n'
+printf '\nExpected results after the API launch:\n'
 case "$demo_scenario" in
   normal)
     printf 'Expected: one success, five committed records, 100%% progress.\n'
