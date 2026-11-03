@@ -1,0 +1,1 @@
+{"type":"index-pattern","id":"batch-processing-logs","attributes":{"title":"batch-processing-*","timeFieldName":"@timestamp"},"references":[]}
