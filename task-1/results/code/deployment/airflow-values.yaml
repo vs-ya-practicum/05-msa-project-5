@@ -1,0 +1,42 @@
+# Overrides for apache-airflow/airflow chart 1.22.0.
+# PostgreSQL and the metadata connection Secret are prepared separately.
+# Create the connection Secret and DAG ConfigMap before applying these values.
+airflowVersion: "3.2.2"
+defaultAirflowRepository: apache/airflow
+defaultAirflowTag: "3.2.2"
+
+executor: LocalExecutor
+
+postgresql:
+  enabled: false
+
+redis:
+  enabled: false
+
+data:
+  metadataSecretName: task1-airflow-metadata
+
+rbac:
+  create: true
+
+allowPodLaunching: true
+
+extraEnvFrom: |
+  - secretRef:
+      name: task1-airflow-connections
+
+volumes:
+  - name: task1-dags
+    configMap:
+      name: task1-dags
+
+volumeMounts:
+  - name: task1-dags
+    mountPath: /opt/airflow/dags/task1_orders.py
+    subPath: task1_orders.py
+    readOnly: true
+
+logs:
+  persistence:
+    enabled: true
+    size: 1Gi
