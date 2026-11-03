@@ -1,0 +1,28 @@
+{
+  "index_patterns": ["batch-processing-*"],
+  "mappings": {
+    "properties": {
+      "@timestamp": { "type": "date" },
+      "etl": {
+        "properties": {
+          "@timestamp": { "type": "date" },
+          "application": { "type": "keyword" },
+          "event": { "type": "keyword" },
+          "job_name": { "type": "keyword" },
+          "job_execution_id": { "type": "keyword" },
+          "step_name": { "type": "keyword" },
+          "step_execution_id": { "type": "keyword" },
+          "status": { "type": "keyword" },
+          "level": { "type": "keyword" },
+          "logger_name": { "type": "keyword" },
+          "thread_name": { "type": "keyword" },
+          "read_count": { "type": "long" },
+          "write_count": { "type": "long" },
+          "duration_seconds": { "type": "double" },
+          "message": { "type": "text" },
+          "stack_trace": { "type": "text" }
+        }
+      }
+    }
+  }
+}

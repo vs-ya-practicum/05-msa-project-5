@@ -1,0 +1,77 @@
+includeObjectNames:
+  - 'com.example.batchprocessing:type=BatchMetrics,name=importProductJob'
+
+rules:
+  - pattern: 'com\.example\.batchprocessing<[^>]*><>CompletedCount'
+    name: tw_batch_job_finished_total
+    type: COUNTER
+    help: Completed job executions since application startup, by outcome.
+    labels:
+      job_name: importProductJob
+      outcome: completed
+
+  - pattern: 'com\.example\.batchprocessing<[^>]*><>FailedCount'
+    name: tw_batch_job_finished_total
+    type: COUNTER
+    help: Completed job executions since application startup, by outcome.
+    labels:
+      job_name: importProductJob
+      outcome: failed
+
+  - pattern: 'com\.example\.batchprocessing<[^>]*><>CompletedDurationSeconds'
+    name: tw_batch_job_duration_seconds_total
+    type: COUNTER
+    help: Total job execution duration in seconds since application startup, by outcome.
+    labels:
+      job_name: importProductJob
+      outcome: completed
+
+  - pattern: 'com\.example\.batchprocessing<[^>]*><>FailedDurationSeconds'
+    name: tw_batch_job_duration_seconds_total
+    type: COUNTER
+    help: Total job execution duration in seconds since application startup, by outcome.
+    labels:
+      job_name: importProductJob
+      outcome: failed
+
+  - pattern: 'com\.example\.batchprocessing<[^>]*><>Active\b'
+    name: tw_batch_job_active
+    type: GAUGE
+    help: Whether a job execution is active (1) or inactive (0).
+    labels:
+      job_name: importProductJob
+
+  - pattern: 'com\.example\.batchprocessing<[^>]*><>ActiveStartTimestampSeconds'
+    name: tw_batch_job_active_start_timestamp_seconds
+    type: GAUGE
+    help: Active job execution start time in Unix seconds, or zero when inactive.
+    labels:
+      job_name: importProductJob
+
+  - pattern: 'com\.example\.batchprocessing<[^>]*><>LastFailureTimestampSeconds'
+    name: tw_batch_job_last_failure_timestamp_seconds
+    type: GAUGE
+    help: Latest final job failure time in Unix seconds since application startup, or zero.
+    labels:
+      job_name: importProductJob
+
+  - pattern: 'com\.example\.batchprocessing<[^>]*><>RecordsRead'
+    name: tw_batch_records_read
+    type: GAUGE
+    help: Records read by the current or most recent job execution at committed checkpoints and completion.
+    labels:
+      job_name: importProductJob
+
+  - pattern: 'com\.example\.batchprocessing<[^>]*><>RecordsWritten'
+    name: tw_batch_records_written
+    type: GAUGE
+    help: Records written and committed by the current or most recent job execution.
+    labels:
+      job_name: importProductJob
+
+  - pattern: 'com\.example\.batchprocessing<[^>]*><>InputRecords'
+    name: tw_batch_input_records
+    type: GAUGE
+    help: Known number of records in the current input fixture.
+    labels:
+      job_name: importProductJob
