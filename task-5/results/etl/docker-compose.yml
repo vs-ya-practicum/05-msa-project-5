@@ -43,6 +43,10 @@ services:
       db-init:
         condition: service_completed_successfully
     image: batch-processing
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresdb:5432/${ETL_DATABASE:-${POSTGRESDB_DATABASE}}
+      BATCH_DEMO_FAIL_ON_SKU: ${BATCH_DEMO_FAIL_ON_SKU:-0}
+      BATCH_DEMO_ITEM_DELAY_MS: ${BATCH_DEMO_ITEM_DELAY_MS:-0}
     build:
       context: .
       dockerfile: ./Dockerfile
