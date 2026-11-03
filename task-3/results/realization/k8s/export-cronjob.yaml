@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: shipments-export
+  namespace: task-3
+spec:
+  schedule: "0 20 * * *"
+  timeZone: Europe/Moscow
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            app: shipments-export
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          containers:
+            - name: exporter
+              image: task-3-export:1.0.0
+              imagePullPolicy: Never
+              envFrom:
+                - configMapRef:
+                    name: export-config
+                - secretRef:
+                    name: postgres-credentials
+              volumeMounts:
+                - name: exports
+                  mountPath: /exports
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 128Mi
+          volumes:
+            - name: exports
+              persistentVolumeClaim:
+                claimName: export-data

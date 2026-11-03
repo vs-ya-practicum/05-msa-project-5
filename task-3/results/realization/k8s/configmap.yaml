@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: export-config
+  namespace: task-3
+data:
+  PGHOST: postgres
+  PGPORT: "5432"
+  PGDATABASE: shipments
+  PGUSER: exporter
+  REPORT_TIME_ZONE: Europe/Moscow
+  OUTPUT_DIR: /exports
