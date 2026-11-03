@@ -1,0 +1,9 @@
+.env
+.env.*
+node_modules/
+.delivery/
+dist/
+.git/
+db/
+k8s/
+screenshots/

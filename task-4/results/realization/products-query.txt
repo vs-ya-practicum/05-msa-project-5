@@ -1,0 +1,12 @@
+Command:
+docker compose exec -T postgresdb psql -U postgres -d productsdb -v ON_ERROR_STOP=1 -c "SELECT productId, productSku, productName, productAmount, productData FROM products ORDER BY productId;"
+
+Output supplied by the user:
+ productid | productsku | productname | productamount | productdata
+-----------+------------+-------------+---------------+-------------
+         1 |      20001 | hammer      |            45 | Loyality_on
+         2 |      30001 | sink        |            20 | Loyality_on
+         3 |      40001 | roof_shell  |           256 | Loyality_on
+         4 |      50001 | priming     |            67 | Loyality_on
+         5 |      60001 | clapboard   |           120 | Loyality_on
+(5 rows)

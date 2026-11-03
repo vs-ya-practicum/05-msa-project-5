@@ -1,0 +1,11 @@
+filebeat.inputs:
+  - type: filestream
+    id: batch-processing-json
+    enabled: true
+    paths:
+      - /var/log/etl/batch-processing.json
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+logging.level: info

@@ -1,0 +1,924 @@
+{
+  "id": null,
+  "uid": "batch-processing",
+  "title": "Spring Batch: обработка CSV",
+  "description": "Task 5 POC: один CSV из пяти записей, одно выполнение за раз. Счётчики накапливаются с запуска процесса; после перезапуска история в приложении не восстанавливается.",
+  "tags": [
+    "task-5",
+    "spring-batch"
+  ],
+  "timezone": "utc",
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [
+    {
+      "title": "Логи ETL в Kibana",
+      "type": "link",
+      "url": "http://localhost:5601/app/discover#/?_a=(index:'batch-processing-logs')&_g=(time:(from:now-15m,to:now))",
+      "targetBlank": true,
+      "tooltip": "Индекс batch-processing-*. Требуется импорт подготовленного представления Kibana.",
+      "includeVars": false,
+      "keepTime": false
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Сбор метрик",
+      "description": "Доступность HTTP endpoint экспортёра; не подтверждает успешность ETL.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Недоступен",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Доступен",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "up{job=\"batch-processing\"}",
+          "instant": true,
+          "range": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Состояние выполнения",
+      "description": "Исход завершённого выполнения показан отдельными счётчиками успеха и сбоя.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 4,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Не запускалось",
+                  "color": "gray"
+                },
+                "1": {
+                  "text": "Выполняется",
+                  "color": "blue"
+                },
+                "2": {
+                  "text": "Завершено",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"} + 2 * (1 - tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"}) * (sum without (outcome) (tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\"}) > bool 0)) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Успешные выполнения / выборка",
+      "description": "Количество успешных выполнений с запуска процесса; знаменатель среднего времени.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\",outcome=\"completed\"}) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Неуспешные выполнения",
+      "description": "Количество финально неуспешных выполнений с запуска процесса.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 4,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\",outcome=\"failed\"}) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Среднее успешного выполнения",
+      "description": "С запуска процесса, только успешные выполнения текущего CSV из пяти записей. При отсутствии успешных выполнений среднее не определено. Норматив для 2 000 строк здесь не проверяется.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 4,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "((tw_batch_job_duration_seconds_total{job=\"batch-processing\",job_name=\"importProductJob\",outcome=\"completed\"} / tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\",outcome=\"completed\"}) and (tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\",outcome=\"completed\"} > 0)) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Время активного выполнения",
+      "description": "Время с начала активного задания. 60 секунд — начальная настройка предупреждения для демонстрации.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 0,
+        "w": 4,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 60
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Нет активного задания",
+                  "color": "gray"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "((time() - tw_batch_job_active_start_timestamp_seconds{job=\"batch-processing\",job_name=\"importProductJob\"}) * tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"}) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Последний финальный сбой",
+      "description": "Время последнего сбоя в текущем процессе, UTC. Истечение окна оповещения не удаляет эту отметку и не подтверждает восстановление отчёта.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 8,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dateTimeAsIso",
+          "decimals": 0,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Сбоев не было",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(tw_batch_job_last_failure_timestamp_seconds{job=\"batch-processing\",job_name=\"importProductJob\"} * 1000) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Входные записи CSV",
+      "description": "Известный размер демонстрационного входа: пять записей.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 5,
+        "w": 4,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(tw_batch_input_records{job=\"batch-processing\",job_name=\"importProductJob\"}) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Прочитано записей",
+      "description": "Текущее или последнее выполнение; значения обновляются на подтверждённых контрольных точках и при завершении.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 4,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "Не запускалось",
+                  "color": "gray"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(((tw_batch_records_read{job=\"batch-processing\",job_name=\"importProductJob\"}) * (clamp_max(sum without (outcome) (tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\"}) + tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"}, 1)) - (1 - (clamp_max(sum without (outcome) (tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\"}) + tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"}, 1))))) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Сохранено записей",
+      "description": "Записи, подтверждённые транзакцией; итог сохраняется после завершения, в том числе при последующем сбое задания.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 5,
+        "w": 4,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "Не запускалось",
+                  "color": "gray"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(((tw_batch_records_written{job=\"batch-processing\",job_name=\"importProductJob\"}) * (clamp_max(sum without (outcome) (tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\"}) + tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"}, 1)) - (1 - (clamp_max(sum without (outcome) (tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\"}) + tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"}, 1))))) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Прогресс записи",
+      "description": "Доля входных записей, сохранённых в БД. Для текущего шага без фильтрации и пропусков. Неизвестный или нулевой вход не даёт процентного значения.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 5,
+        "w": 4,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "Не запускалось",
+                  "color": "gray"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "((((100 * tw_batch_records_written{job=\"batch-processing\",job_name=\"importProductJob\"} / tw_batch_input_records{job=\"batch-processing\",job_name=\"importProductJob\"}) * (clamp_max(sum without (outcome) (tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\"}) + tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"}, 1)) - (1 - (clamp_max(sum without (outcome) (tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\"}) + tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"}, 1))))) and (tw_batch_input_records{job=\"batch-processing\",job_name=\"importProductJob\"} > 0)) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Прогресс текущего или последнего выполнения",
+      "description": "Gauge-значения сохраняются после завершения. Короткий запуск может завершиться между сборами, поэтому промежуточные точки не гарантированы. При новом запуске процесса значения сбрасываются.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "noValue": "Нет данных",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "auto",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "((tw_batch_input_records{job=\"batch-processing\",job_name=\"importProductJob\"}) and (clamp_max(sum without (outcome) (tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\"}) + tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"}, 1) > 0)) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "legendFormat": "Вход",
+          "instant": false,
+          "range": true,
+          "editorMode": "code"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "((tw_batch_records_read{job=\"batch-processing\",job_name=\"importProductJob\"}) and (clamp_max(sum without (outcome) (tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\"}) + tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"}, 1) > 0)) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "legendFormat": "Прочитано",
+          "instant": false,
+          "range": true,
+          "editorMode": "code"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "((tw_batch_records_written{job=\"batch-processing\",job_name=\"importProductJob\"}) and (clamp_max(sum without (outcome) (tw_batch_job_finished_total{job=\"batch-processing\",job_name=\"importProductJob\"}) + tw_batch_job_active{job=\"batch-processing\",job_name=\"importProductJob\"}, 1) > 0)) and on (job, instance) (up{job=\"batch-processing\"} == 1)",
+          "legendFormat": "Сохранено",
+          "instant": false,
+          "range": true,
+          "editorMode": "code"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "version": 1
+}

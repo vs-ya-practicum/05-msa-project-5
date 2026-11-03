@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: task1-postgres-init
+  namespace: task1
+data:
+  01-databases.sql: |
+    \set ON_ERROR_STOP on
+    \getenv airflow_password AIRFLOW_PASSWORD
+    \getenv source_password SOURCE_PASSWORD
+    \getenv processing_password PROCESSING_PASSWORD
+
+    CREATE ROLE airflow LOGIN PASSWORD :'airflow_password';
+    CREATE ROLE source_reader LOGIN PASSWORD :'source_password';
+    CREATE ROLE processing LOGIN PASSWORD :'processing_password';
+
+    CREATE DATABASE airflow OWNER airflow;
+    CREATE DATABASE source OWNER postgres;
+    CREATE DATABASE processing OWNER processing;
+
+    REVOKE CONNECT ON DATABASE airflow FROM PUBLIC;
+    REVOKE CONNECT ON DATABASE source FROM PUBLIC;
+    REVOKE CONNECT ON DATABASE processing FROM PUBLIC;
+    GRANT CONNECT ON DATABASE airflow TO airflow;
+    GRANT CONNECT ON DATABASE source TO source_reader;
+    GRANT CONNECT ON DATABASE processing TO processing;
+
+    \connect source
+    GRANT USAGE ON SCHEMA public TO source_reader;
+    ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+      GRANT SELECT ON TABLES TO source_reader;
+
+    \connect processing
+    CREATE SCHEMA staging AUTHORIZATION processing;
+    CREATE SCHEMA reporting AUTHORIZATION processing;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task1-postgres
+  namespace: task1
+spec:
+  clusterIP: None
+  selector:
+    app: task1-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: task1-postgres
+  namespace: task1
+spec:
+  serviceName: task1-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: task1-postgres
+  template:
+    metadata:
+      labels:
+        app: task1-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16.15-bookworm
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          envFrom:
+            - secretRef:
+                name: task1-postgres-credentials
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          startupProbe:
+            exec:
+              command: [pg_isready, -U, postgres, -d, postgres, -h, "127.0.0.1"]
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, postgres, -d, postgres, -h, "127.0.0.1"]
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: init
+          configMap:
+            name: task1-postgres-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 2Gi
