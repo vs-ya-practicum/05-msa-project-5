@@ -1,0 +1,134 @@
+services:
+  postgresdb:
+    image: postgres:18
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      - POSTGRES_USER=$POSTGRESDB_USER
+      - POSTGRES_PASSWORD=$POSTGRESDB_ROOT_PASSWORD
+      - POSTGRES_DB=$POSTGRESDB_DATABASE
+    ports:
+      - $POSTGRESDB_LOCAL_PORT:$POSTGRESDB_DOCKER_PORT
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  db-init:
+    image: postgres:18
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+    environment:
+      PGHOST: postgresdb
+      PGPORT: 5432
+      PGUSER: ${POSTGRESDB_USER}
+      PGPASSWORD: ${POSTGRESDB_ROOT_PASSWORD}
+      PGDATABASE: ${POSTGRESDB_DATABASE}
+    volumes:
+      - ./db-init.sql:/init/db-init.sql:ro
+      - ./src/main/resources/schema-all.sql:/init/schema-all.sql:ro
+      - ./src/main/resources/loyality_data.csv:/init/loyality_data.csv:ro
+    command: ["psql", "-X", "--set=ON_ERROR_STOP=1", "--single-transaction", "--file=/init/db-init.sql"]
+    restart: "no"
+
+  app:
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    image: batch-processing
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresdb:5432/${ETL_DATABASE:-${POSTGRESDB_DATABASE}}
+      BATCH_DEMO_FAIL_ON_SKU: ${BATCH_DEMO_FAIL_ON_SKU:-0}
+      BATCH_DEMO_ITEM_DELAY_MS: ${BATCH_DEMO_ITEM_DELAY_MS:-0}
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    volumes:
+      - etl-logs:/app/logs
+    restart: no
+
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:12.0.1
+    restart: unless-stopped
+    environment:
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.28
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.28
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      LS_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/templates:/usr/share/logstash/templates:ro
+
+  filebeat:
+    build: ./filebeat
+    restart: unless-stopped
+    depends_on:
+      logstash:
+        condition: service_started
+    volumes:
+      - etl-logs:/var/log/etl:ro
+      - filebeat-data:/usr/share/filebeat/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.28
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+    ports:
+      - "5601:5601"
+
+volumes:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
+  elasticsearch-data:
+  etl-logs:
+  filebeat-data:
