@@ -29,6 +29,11 @@ public class BatchJobController {
 	public ResponseEntity<LaunchResponse> launchJob() throws JobExecutionAlreadyRunningException,
 			JobRestartException, JobInstanceAlreadyCompleteException, JobParametersInvalidException {
 		JobExecution execution = batchJobRunner.launchJob();
+		log.atInfo()
+			.addKeyValue("event", "job_launch_accepted")
+			.addKeyValue("job_name", execution.getJobInstance().getJobName())
+			.addKeyValue("job_execution_id", execution.getId())
+			.log("Job launch accepted");
 		LaunchResponse response = new LaunchResponse(
 			execution.getJobInstance().getJobName(),
 			execution.getId(),
@@ -39,6 +44,10 @@ public class BatchJobController {
 
 	@ExceptionHandler(JobExecutionAlreadyRunningException.class)
 	public ResponseEntity<ErrorResponse> handleJobAlreadyRunning() {
+		log.atInfo()
+			.addKeyValue("event", "job_launch_rejected")
+			.addKeyValue("code", "JOB_ALREADY_RUNNING")
+			.log("Job already running");
 		return ResponseEntity.status(409).body(
 			new ErrorResponse("JOB_ALREADY_RUNNING", "Job already running")
 		);
@@ -46,6 +55,10 @@ public class BatchJobController {
 
 	@ExceptionHandler(JobInstanceAlreadyCompleteException.class)
 	public ResponseEntity<ErrorResponse> handleJobAlreadyCompleted() {
+		log.atInfo()
+			.addKeyValue("event", "job_launch_rejected")
+			.addKeyValue("code", "JOB_ALREADY_COMPLETED")
+			.log("Job already completed");
 		return ResponseEntity.status(409).body(
 			new ErrorResponse("JOB_ALREADY_COMPLETED", "Job already completed")
 		);
@@ -53,6 +66,10 @@ public class BatchJobController {
 
 	@ExceptionHandler(JobRestartException.class)
 	public ResponseEntity<ErrorResponse> handleJobRestartNotAllowed() {
+		log.atInfo()
+			.addKeyValue("event", "job_launch_rejected")
+			.addKeyValue("code", "JOB_RESTART_NOT_ALLOWED")
+			.log("Job restart not allowed");
 		return ResponseEntity.status(409).body(
 			new ErrorResponse("JOB_RESTART_NOT_ALLOWED", "Job restart not allowed")
 		);

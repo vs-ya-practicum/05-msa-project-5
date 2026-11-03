@@ -13,12 +13,13 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 public class ApiJobLaunchConfiguration {
 
 	@Bean
-	public ThreadPoolTaskExecutor apiJobExecutor() {
+	public ThreadPoolTaskExecutor apiJobExecutor(BatchTracingTaskDecorator taskDecorator) {
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 		executor.setCorePoolSize(1);
 		executor.setMaxPoolSize(1);
 		executor.setQueueCapacity(0);
 		executor.setThreadNamePrefix("batch-job-worker-");
+		executor.setTaskDecorator(taskDecorator);
 		executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
 		executor.setWaitForTasksToCompleteOnShutdown(true);
 		executor.setAwaitTerminationSeconds(30);
